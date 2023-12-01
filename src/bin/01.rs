@@ -1,3 +1,5 @@
+use regex::Regex;
+
 advent_of_code::solution!(1);
 
 fn char_to_u32(c: char) -> u32 {
@@ -15,71 +17,41 @@ pub fn part_one(input: &str) -> Option<u32> {
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
-    let nums = [
-        "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
-    ];
+    let pattern =
+        Regex::new(r"([1-9])|(one)|(two)|(three)|(four)|(five)|(six)|(seven)|(eight)|(nine)")
+            .unwrap();
+    let pattern_rev =
+        Regex::new(r"([1-9])|(eno)|(owt)|(eerht)|(ruof)|(evif)|(xis)|(neves)|(thgie)|(enin)")
+            .unwrap();
     Some(input.lines().into_iter().fold(0, |acc, el| {
-        let (min_i, min_pos) = nums
-            .iter()
-            .enumerate()
-            .map(|(i, num)| (i, el.find(num)))
-            .filter(|(_i, pos)| pos.is_some())
-            .fold((None, usize::MAX), |(min_i, min_pos), (i, pos)| {
-                let pos = pos.unwrap();
-                if pos < min_pos {
-                    (Some(i), pos)
-                } else {
-                    (min_i, min_pos)
+        let first = pattern.captures(el).unwrap();
+        let mut first_num: u32 = 0;
+        for i in 1..10 {
+            if let Some(x) = first.get(i) {
+                if i == 1 {
+                    first_num = char_to_u32(x.as_str().chars().next().unwrap());
+                    break;
                 }
-            });
-        let (max_i, max_pos) = nums
-            .iter()
-            .enumerate()
-            .map(|(i, num)| (i, el.rfind(num)))
-            .filter(|(_i, pos)| pos.is_some())
-            .fold((None, usize::MIN), |(max_i, max_pos), (i, pos)| {
-                let pos = pos.unwrap();
-                if pos > max_pos {
-                    (Some(i), pos)
-                } else {
-                    (max_i, max_pos)
-                }
-            });
-        let res: u32;
-        if let Some(min_i_usize) = min_i {
-            // We need to compare digit positions
-            let maybe_first_num_pos = el.chars().position(|x| char::is_ascii_digit(&x));
-            let maybe_last_num_pos = el
-                .chars()
-                .enumerate()
-                .filter(|(_i, c)| char::is_ascii_digit(c))
-                .last();
-            let first_num: char;
-            let last_num: char;
-            if let Some(first_num_pos) = maybe_first_num_pos {
-                let last_num_pos = maybe_last_num_pos.unwrap();
-                if first_num_pos < min_pos {
-                    first_num = el.chars().nth(first_num_pos).unwrap();
-                } else {
-                    first_num = (min_i_usize as u8 + b'1') as char;
-                }
-                if last_num_pos.0 > max_pos {
-                    last_num = last_num_pos.1;
-                } else {
-                    last_num = (max_i.unwrap() as u8 + b'1') as char;
-                }
-            } else {
-                first_num = (min_i_usize as u8 + b'1') as char;
-                last_num = (max_i.unwrap() as u8 + b'1') as char;
+                first_num = i as u32 - 1;
+                break;
             }
-            res = char_to_u32(first_num) * 10 + char_to_u32(last_num);
-        } else {
-            // Just do the basic digits again
-            let first_num = el.chars().find(char::is_ascii_digit).unwrap_or('0');
-            let last_num = el.chars().rfind(char::is_ascii_digit).unwrap_or('0');
-            res = char_to_u32(first_num) * 10 + char_to_u32(last_num);
         }
 
+        let reversed = el.chars().rev().collect::<String>();
+        let first = pattern_rev.captures(&reversed).unwrap();
+        let mut last_num: u32 = 0;
+        for i in 1..=10 {
+            if let Some(x) = first.get(i) {
+                if i == 1 {
+                    last_num = char_to_u32(x.as_str().chars().next().unwrap());
+                    break;
+                }
+                last_num = i as u32 - 1;
+                break;
+            }
+        }
+
+        let res = first_num * 10 + last_num;
         acc + res
     }))
 }

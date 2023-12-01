@@ -1,25 +1,24 @@
-use std::num::ParseIntError;
-
 advent_of_code::solution!(1);
 
+fn char_to_u32(c: char) -> u32 {
+    (c as u8 - b'0') as u32
+}
+
 pub fn part_one(input: &str) -> Option<u32> {
-    input.lines().into_iter().fold(Some(0), |acc, el| {
+    Some(input.lines().into_iter().fold(0, |acc, el| {
         let first_num = el.chars().find(char::is_ascii_digit).unwrap_or('0');
         let last_num = el.chars().rfind(char::is_ascii_digit).unwrap_or('0');
-        let res: Result<u32, ParseIntError> = format!("{}{}", first_num, last_num).parse();
+        let res: u32 = char_to_u32(first_num) * 10 + char_to_u32(last_num);
 
-        match (acc, res) {
-            (Some(a), Ok(b)) => Some(a + b),
-            _ => None,
-        }
-    })
+        acc + res
+    }))
 }
 
 pub fn part_two(input: &str) -> Option<u32> {
     let nums = [
         "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
     ];
-    input.lines().into_iter().fold(Some(0), |acc, el| {
+    Some(input.lines().into_iter().fold(0, |acc, el| {
         let (min_i, min_pos) = nums
             .iter()
             .enumerate()
@@ -73,19 +72,16 @@ pub fn part_two(input: &str) -> Option<u32> {
                 first_num = (min_i_usize as u8 + b'1') as char;
                 last_num = (max_i.unwrap() as u8 + b'1') as char;
             }
-            res = format!("{}{}", first_num, last_num).parse().unwrap();
+            res = char_to_u32(first_num) * 10 + char_to_u32(last_num);
         } else {
             // Just do the basic digits again
             let first_num = el.chars().find(char::is_ascii_digit).unwrap_or('0');
             let last_num = el.chars().rfind(char::is_ascii_digit).unwrap_or('0');
-            res = format!("{}{}", first_num, last_num).parse().unwrap();
+            res = char_to_u32(first_num) * 10 + char_to_u32(last_num);
         }
 
-        match (acc, res) {
-            (Some(a), b) => Some(a + b),
-            _ => None,
-        }
-    })
+        acc + res
+    }))
 }
 
 #[cfg(test)]

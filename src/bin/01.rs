@@ -131,7 +131,7 @@ fn state_machine_find<I: Iterator<Item = char>>(
             (0, None) if state == 0 => (),
 
             // When we fail from another state, try again from state 0
-            (0, None) => match forward_next_step(0, c) {
+            (0, None) => match transition_fn(0, c) {
                 // Update state on transition
                 (new_state, None) => state = new_state,
                 // Return on success

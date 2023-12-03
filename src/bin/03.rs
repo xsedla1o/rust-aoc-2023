@@ -208,78 +208,97 @@ impl Intersects for Rect {
     }
 }
 
-pub fn part_two(input: &str) -> Option<u64> {
-    let mut sum = 0;
-    let mut nums: VecDeque<NumBox> = VecDeque::new();
-    for (y, line) in input.lines().enumerate() {
-        let mut collecting_number = false;
-        let mut start_pos = 0;
-        for (x, c) in line.chars().enumerate() {
-            if !collecting_number && c.is_ascii_digit() {
-                collecting_number = true;
-                start_pos = x;
-            } else if collecting_number && !c.is_ascii_digit() {
-                collecting_number = false;
-                let num = line[start_pos..x].parse::<u32>().unwrap();
-                let pos = Rect {
-                    y1: y,
-                    x1: start_pos,
-                    y2: y,
-                    x2: x - 1,
-                };
-                let nb = NumBox { p: pos, num };
-                nums.push_back(nb);
-            }
-        }
-        if collecting_number {
-            let num = line[start_pos..].parse::<u32>().unwrap();
+fn collect_nums(nums: &mut VecDeque<NumBox>, l: (usize, &str)) {
+    let (y, line) = l;
+    let mut collecting_number = false;
+    let mut start_pos = 0;
+    for (x, c) in line.chars().enumerate() {
+        if !collecting_number && c.is_ascii_digit() {
+            collecting_number = true;
+            start_pos = x;
+        } else if collecting_number && !c.is_ascii_digit() {
+            collecting_number = false;
+            let num = line[start_pos..x].parse::<u32>().unwrap();
             let pos = Rect {
                 y1: y,
                 x1: start_pos,
                 y2: y,
-                x2: line.len() - 1,
+                x2: x - 1,
             };
             let nb = NumBox { p: pos, num };
             nums.push_back(nb);
         }
     }
+    if collecting_number {
+        let num = line[start_pos..].parse::<u32>().unwrap();
+        let pos = Rect {
+            y1: y,
+            x1: start_pos,
+            y2: y,
+            x2: line.len() - 1,
+        };
+        let nb = NumBox { p: pos, num };
+        nums.push_back(nb);
+    }
+}
 
-    let mut candidates: Vec<u32> = Vec::new();
-    for (y, line) in input.lines().enumerate() {
-        while let Some(n) = nums.pop_front() {
-            if n.p.y1 + 2 > y {
-                nums.push_front(n);
-                break;
-            }
+fn sum_gear_ratios(
+    nums: &mut VecDeque<NumBox>,
+    y: usize,
+    line: &str,
+    candidates: &mut Vec<u32>,
+) -> u64 {
+    let mut sum = 0;
+    while let Some(n) = nums.pop_front() {
+        if n.p.y1 + 2 > y {
+            nums.push_front(n);
+            break;
         }
-        let relevant: Vec<&NumBox> = nums
-            .iter()
-            .filter(|n| n.p.y1 + 1 >= y && n.p.y2 <= y + 1)
-            .collect();
-        for (x, c) in line.chars().enumerate() {
-            if c == '*' {
-                let mul_pos = Rect {
-                    y1: if y > 0 { y - 1 } else { y },
-                    x1: if x > 0 { x - 1 } else { x },
-                    y2: (y + 1),
-                    x2: (x + 1),
-                };
-                candidates.clear();
-                for n in &relevant {
-                    if mul_pos.instersects(&n.p) {
-                        candidates.push(n.num);
-                        if candidates.len() > 2 {
-                            candidates.clear();
-                            break;
-                        }
+    }
+    for (x, c) in line.chars().enumerate() {
+        if c == '*' {
+            let mul_pos = Rect {
+                y1: if y > 0 { y - 1 } else { y },
+                x1: if x > 0 { x - 1 } else { x },
+                y2: (y + 1),
+                x2: (x + 1),
+            };
+            candidates.clear();
+            for n in &mut *nums {
+                if mul_pos.instersects(&n.p) {
+                    candidates.push(n.num);
+                    if candidates.len() > 2 {
+                        candidates.clear();
+                        break;
                     }
                 }
-                if candidates.len() == 2 {
-                    sum += candidates.iter().map(|x| *x as u64).product::<u64>();
-                }
+            }
+            if candidates.len() == 2 {
+                sum += candidates.iter().map(|x| *x as u64).product::<u64>();
             }
         }
     }
+    sum
+}
+
+pub fn part_two(input: &str) -> Option<u64> {
+    let mut sum = 0;
+    let mut nums: VecDeque<NumBox> = VecDeque::new();
+    let mut candidates: Vec<u32> = Vec::new();
+
+    let mut last_line: (usize, &str) = (0, "");
+
+    let l1 = input.lines().next().unwrap();
+    collect_nums(&mut nums, (0, l1));
+
+    for (l1, l2) in input.lines().enumerate().into_iter().tuple_windows() {
+        collect_nums(&mut nums, l2);
+        last_line = l2;
+        sum += sum_gear_ratios(&mut nums, l1.0, l1.1, &mut candidates);
+    }
+
+    sum += sum_gear_ratios(&mut nums, last_line.0, last_line.1, &mut candidates);
+
     Some(sum)
 }
 

@@ -36,11 +36,10 @@ pub fn part_one(input: &str) -> Option<u32> {
     let l1 = input.lines().next().unwrap();
     collect_nums(&mut nums, (0, l1));
 
-    for (l1, l2) in input.lines().enumerate().into_iter().tuple_windows() {
+    for ((y, line), l2) in input.lines().enumerate().into_iter().tuple_windows() {
         collect_nums(&mut nums, l2);
         last_line = l2;
 
-        let (y, line) = l1;
         remove_unrelevant(&mut nums, y);
         sum += sum_part_nums(&mut nums, y, line);
     }
@@ -123,11 +122,10 @@ pub fn part_two(input: &str) -> Option<u64> {
     let l1 = input.lines().next().unwrap();
     collect_nums(&mut nums, (0, l1));
 
-    for (l1, l2) in input.lines().enumerate().into_iter().tuple_windows() {
+    for ((y, line), l2) in input.lines().enumerate().into_iter().tuple_windows() {
         collect_nums(&mut nums, l2);
         last_line = l2;
 
-        let (y, line) = l1;
         remove_unrelevant(&mut nums, y);
         sum += sum_gear_ratios(&mut nums, y, line, &mut candidates);
     }

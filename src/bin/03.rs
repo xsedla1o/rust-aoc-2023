@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use std::iter::zip;
+use std::{collections::VecDeque, iter::zip};
 
 advent_of_code::solution!(3);
 
@@ -108,6 +108,36 @@ fn resolve_post(mut s: &mut HeadState, line: &str) -> u32 {
     sum
 }
 
+fn execute_promote(prev_state: &HeadState, l1_state: &mut HeadState, l2_state: &HeadState) {
+    let mut promote_state = LineState::None;
+    if l1_state.state == LineState::SymbolPost
+        || l2_state.state == LineState::SymbolPost
+        || prev_state.state == LineState::SymbolPost
+        || l1_state.state == LineState::ValidNumSymbol
+        || l2_state.state == LineState::ValidNumSymbol
+        || prev_state.state == LineState::ValidNumSymbol
+    {
+        promote_state = LineState::SymbolPost;
+    }
+    if l1_state.state == LineState::Symbol
+        || l2_state.state == LineState::Symbol
+        || prev_state.state == LineState::Symbol
+    {
+        promote_state = LineState::Symbol;
+    }
+    if promote_state != LineState::None {
+        promote(l1_state, &promote_state);
+    }
+}
+
+fn char_to_state(c: char) -> CharType {
+    match c {
+        '.' => CharType::Void,
+        x if x.is_ascii_digit() => CharType::Digit,
+        _ => CharType::Symbol,
+    }
+}
+
 pub fn part_one(input: &str) -> Option<u32> {
     let size = input.lines().next().unwrap().len();
     let mut prev_states: Vec<HeadState> = vec![HeadState::default(); size];
@@ -119,61 +149,23 @@ pub fn part_one(input: &str) -> Option<u32> {
             .tuple_windows()
             .map(|(l1, l2)| {
                 let mut sum = 0;
-                // println!("{l1}, {l2}");
                 let mut prev_state = HeadState::default();
                 let mut l1_state = HeadState::default();
                 let mut l2_state = HeadState::default();
-                let mut promote_state: LineState;
 
                 for (i, (c1, c2)) in zip(l1.chars(), l2.chars()).enumerate() {
                     prev_state = prev_states[i];
-                    l1_state.ctype = match c1 {
-                        '.' => CharType::Void,
-                        x if x.is_ascii_digit() => CharType::Digit,
-                        _ => CharType::Symbol,
-                    };
-                    l2_state.ctype = match c2 {
-                        '.' => CharType::Void,
-                        x if x.is_ascii_digit() => CharType::Digit,
-                        _ => CharType::Symbol,
-                    };
+                    l1_state.ctype = char_to_state(c1);
+                    l2_state.ctype = char_to_state(c2);
 
                     let mut res = next_step(&mut l1_state, i, l1);
                     next_step(&mut l2_state, i, l2);
 
-                    promote_state = LineState::None;
-                    if l1_state.state == LineState::SymbolPost
-                        || l2_state.state == LineState::SymbolPost
-                        || prev_state.state == LineState::SymbolPost
-                        || l1_state.state == LineState::ValidNumSymbol
-                        || l2_state.state == LineState::ValidNumSymbol
-                        || prev_state.state == LineState::ValidNumSymbol
-                    {
-                        promote_state = LineState::SymbolPost;
-                    }
-                    if l1_state.state == LineState::Symbol
-                        || l2_state.state == LineState::Symbol
-                        || prev_state.state == LineState::Symbol
-                    {
-                        promote_state = LineState::Symbol;
-                    }
-                    if promote_state != LineState::None {
-                        promote(&mut l1_state, &promote_state);
-                    }
-
-                    // println!("{i}, {:?}", &prev_state.state);
-                    // println!("            {i}, {c1}, {:?}", &l1_state.state);
-                    // println!(
-                    //     "                             {i}, {c2}, {:?}",
-                    //     &l2_state.state
-                    // );
+                    execute_promote(&prev_state, &mut l1_state, &l2_state);
 
                     prev_states[i] = l1_state;
 
                     res += resolve_post(&mut l1_state, l1);
-                    // if res != 0 {
-                    //     println!("res: {res}");
-                    // }
                     sum += res;
                     resolve_post(&mut l2_state, l2);
                 }
@@ -182,42 +174,113 @@ pub fn part_one(input: &str) -> Option<u32> {
                 let mut res = next_step(&mut l1_state, size, l1);
                 next_step(&mut l2_state, size, l2);
 
-                promote_state = LineState::None;
-                if l1_state.state == LineState::SymbolPost
-                    || l2_state.state == LineState::SymbolPost
-                    || prev_state.state == LineState::SymbolPost
-                    || l1_state.state == LineState::ValidNumSymbol
-                    || l2_state.state == LineState::ValidNumSymbol
-                    || prev_state.state == LineState::ValidNumSymbol
-                {
-                    promote_state = LineState::SymbolPost;
-                }
-                if l1_state.state == LineState::Symbol
-                    || l2_state.state == LineState::Symbol
-                    || prev_state.state == LineState::Symbol
-                {
-                    promote_state = LineState::Symbol;
-                }
-                if promote_state != LineState::None {
-                    promote(&mut l1_state, &promote_state);
-                }
+                execute_promote(&prev_state, &mut l1_state, &l2_state);
 
                 res += resolve_post(&mut l1_state, l1);
-                // if res != 0 {
-                //     println!("res: {res}");
-                // }
                 sum += res;
-
-                // println!();
-
                 sum
             })
             .sum(),
     )
 }
 
-pub fn part_two(_input: &str) -> Option<u32> {
-    None
+trait Intersects {
+    fn instersects(&self, other: &Self) -> bool;
+}
+
+#[derive(Debug)]
+struct NumBox {
+    p: Rect,
+    num: u32,
+}
+
+#[derive(Debug)]
+struct Rect {
+    y1: usize,
+    x1: usize,
+    y2: usize,
+    x2: usize,
+}
+
+impl Intersects for Rect {
+    fn instersects(&self, other: &Rect) -> bool {
+        !(self.x2 < other.x1 || self.x1 > other.x2 || self.y2 < other.y1 || self.y1 > other.y2)
+    }
+}
+
+pub fn part_two(input: &str) -> Option<u64> {
+    let mut sum = 0;
+    let mut nums: VecDeque<NumBox> = VecDeque::new();
+    for (y, line) in input.lines().enumerate() {
+        let mut collecting_number = false;
+        let mut start_pos = 0;
+        for (x, c) in line.chars().enumerate() {
+            if !collecting_number && c.is_ascii_digit() {
+                collecting_number = true;
+                start_pos = x;
+            } else if collecting_number && !c.is_ascii_digit() {
+                collecting_number = false;
+                let num = line[start_pos..x].parse::<u32>().unwrap();
+                let pos = Rect {
+                    y1: y,
+                    x1: start_pos,
+                    y2: y,
+                    x2: x - 1,
+                };
+                let nb = NumBox { p: pos, num };
+                nums.push_back(nb);
+            }
+        }
+        if collecting_number {
+            let num = line[start_pos..].parse::<u32>().unwrap();
+            let pos = Rect {
+                y1: y,
+                x1: start_pos,
+                y2: y,
+                x2: line.len() - 1,
+            };
+            let nb = NumBox { p: pos, num };
+            nums.push_back(nb);
+        }
+    }
+
+    let mut candidates: Vec<u32> = Vec::new();
+    for (y, line) in input.lines().enumerate() {
+        while let Some(n) = nums.pop_front() {
+            if n.p.y1 + 2 > y {
+                nums.push_front(n);
+                break;
+            }
+        }
+        let relevant: Vec<&NumBox> = nums
+            .iter()
+            .filter(|n| n.p.y1 + 1 >= y && n.p.y2 <= y + 1)
+            .collect();
+        for (x, c) in line.chars().enumerate() {
+            if c == '*' {
+                let mul_pos = Rect {
+                    y1: if y > 0 { y - 1 } else { y },
+                    x1: if x > 0 { x - 1 } else { x },
+                    y2: (y + 1),
+                    x2: (x + 1),
+                };
+                candidates.clear();
+                for n in &relevant {
+                    if mul_pos.instersects(&n.p) {
+                        candidates.push(n.num);
+                        if candidates.len() > 2 {
+                            candidates.clear();
+                            break;
+                        }
+                    }
+                }
+                if candidates.len() == 2 {
+                    sum += candidates.iter().map(|x| *x as u64).product::<u64>();
+                }
+            }
+        }
+    }
+    Some(sum)
 }
 
 #[cfg(test)]
@@ -233,6 +296,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(467835));
     }
 }

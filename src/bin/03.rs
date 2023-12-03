@@ -1,187 +1,58 @@
 use itertools::Itertools;
-use std::{collections::VecDeque, iter::zip};
+use std::collections::VecDeque;
 
 advent_of_code::solution!(3);
 
-#[derive(Debug, PartialEq, Clone, Copy)]
-enum LineState {
-    None,
-    Num,
-    ValidNum,
-    ValidNumSymbol,
-    NumPost,
-    ValidNumPost,
-    Symbol,
-    SymbolPost,
-}
-
-impl Default for LineState {
-    fn default() -> Self {
-        LineState::None
+fn remove_unrelevant(nums: &mut VecDeque<NumBox>, y: usize) {
+    while let Some(n) = nums.pop_front() {
+        if n.p.y1 + 2 > y {
+            nums.push_front(n);
+            break;
+        }
     }
 }
 
-#[derive(Clone, Copy)]
-enum CharType {
-    Void,
-    Digit,
-    Symbol,
-}
-
-impl Default for CharType {
-    fn default() -> Self {
-        CharType::Void
-    }
-}
-
-#[derive(Default, Clone, Copy)]
-struct HeadState {
-    state: LineState,
-    ctype: CharType,
-    num_start: usize,
-    num_end: usize,
-}
-
-fn next_step(mut s: &mut HeadState, i: usize, line: &str) -> u32 {
+fn sum_part_nums(nums: &mut VecDeque<NumBox>, y: usize, line: &str) -> u32 {
     let mut sum = 0;
-    match (&s.state, &s.ctype) {
-        (&LineState::None, CharType::Digit) => {
-            s.state = LineState::Num;
-            s.num_start = i;
-        }
-        (&LineState::Symbol, CharType::Digit) => {
-            s.state = LineState::ValidNumSymbol;
-            s.num_start = i;
-        }
-        (&LineState::ValidNumSymbol, CharType::Digit) => {
-            s.state = LineState::ValidNum;
-        }
-        (&LineState::None, CharType::Symbol) => {
-            s.state = LineState::Symbol;
-        }
-        (&LineState::Num | &LineState::ValidNum | &LineState::ValidNumSymbol, CharType::Symbol) => {
-            sum += line[s.num_start..i].parse::<u32>().unwrap();
-            s.state = LineState::Symbol
-        }
-        (
-            st @ (&LineState::Num | &LineState::ValidNum | &LineState::ValidNumSymbol),
-            CharType::Void,
-        ) => {
-            s.state = match *st {
-                LineState::Num => LineState::NumPost,
-                LineState::ValidNum => LineState::ValidNumPost,
-                LineState::ValidNumSymbol => LineState::ValidNumPost,
-                _ => panic!("{st:?}"),
+    for (x, c) in line.chars().enumerate() {
+        if c != '.' && !c.is_ascii_digit() {
+            let symbol_pos = Rect {
+                y1: if y > 0 { y - 1 } else { y },
+                x1: if x > 0 { x - 1 } else { x },
+                y2: (y + 1),
+                x2: (x + 1),
             };
-            s.num_end = i;
+            for n in &mut *nums {
+                if symbol_pos.instersects(&n.p) {
+                    sum += n.num;
+                }
+            }
         }
-        (&LineState::Symbol, CharType::Void) => s.state = LineState::SymbolPost,
-        (&LineState::SymbolPost, CharType::Void) => s.state = LineState::None,
-        (&LineState::SymbolPost, CharType::Symbol) => s.state = LineState::Symbol,
-        (&LineState::ValidNumPost, _) => {
-            sum += line[s.num_start..s.num_end].parse::<u32>().unwrap();
-            s.state = LineState::None
-        }
-        _ => (),
     }
     sum
-}
-
-fn promote(mut s: &mut HeadState, ls: &LineState) {
-    s.state = match &s.state {
-        LineState::Num => LineState::ValidNum,
-        LineState::NumPost if ls == &LineState::Symbol => LineState::ValidNumPost,
-        &x => x,
-    }
-}
-
-fn resolve_post(mut s: &mut HeadState, line: &str) -> u32 {
-    let mut sum = 0;
-    match (&s.state, &s.ctype) {
-        (&LineState::ValidNumPost, _) => {
-            sum += line[s.num_start..s.num_end].parse::<u32>().unwrap();
-            s.state = LineState::None
-        }
-        (_, CharType::Void) => s.state = LineState::None,
-        _ => (),
-    }
-    sum
-}
-
-fn execute_promote(prev_state: &HeadState, l1_state: &mut HeadState, l2_state: &HeadState) {
-    let mut promote_state = LineState::None;
-    if l1_state.state == LineState::SymbolPost
-        || l2_state.state == LineState::SymbolPost
-        || prev_state.state == LineState::SymbolPost
-        || l1_state.state == LineState::ValidNumSymbol
-        || l2_state.state == LineState::ValidNumSymbol
-        || prev_state.state == LineState::ValidNumSymbol
-    {
-        promote_state = LineState::SymbolPost;
-    }
-    if l1_state.state == LineState::Symbol
-        || l2_state.state == LineState::Symbol
-        || prev_state.state == LineState::Symbol
-    {
-        promote_state = LineState::Symbol;
-    }
-    if promote_state != LineState::None {
-        promote(l1_state, &promote_state);
-    }
-}
-
-fn char_to_state(c: char) -> CharType {
-    match c {
-        '.' => CharType::Void,
-        x if x.is_ascii_digit() => CharType::Digit,
-        _ => CharType::Symbol,
-    }
 }
 
 pub fn part_one(input: &str) -> Option<u32> {
-    let size = input.lines().next().unwrap().len();
-    let mut prev_states: Vec<HeadState> = vec![HeadState::default(); size];
-    let input: String = input.to_string() + &".".repeat(size) + "\n";
-    Some(
-        input
-            .lines()
-            .into_iter()
-            .tuple_windows()
-            .map(|(l1, l2)| {
-                let mut sum = 0;
-                let mut prev_state = HeadState::default();
-                let mut l1_state = HeadState::default();
-                let mut l2_state = HeadState::default();
+    let mut sum: u32 = 0;
+    let mut nums: VecDeque<NumBox> = VecDeque::new();
 
-                for (i, (c1, c2)) in zip(l1.chars(), l2.chars()).enumerate() {
-                    prev_state = prev_states[i];
-                    l1_state.ctype = char_to_state(c1);
-                    l2_state.ctype = char_to_state(c2);
+    let mut last_line: (usize, &str) = (0, "");
 
-                    let mut res = next_step(&mut l1_state, i, l1);
-                    next_step(&mut l2_state, i, l2);
+    let l1 = input.lines().next().unwrap();
+    collect_nums(&mut nums, (0, l1));
 
-                    execute_promote(&prev_state, &mut l1_state, &l2_state);
+    for (l1, l2) in input.lines().enumerate().into_iter().tuple_windows() {
+        collect_nums(&mut nums, l2);
+        last_line = l2;
 
-                    prev_states[i] = l1_state;
+        let (y, line) = l1;
+        remove_unrelevant(&mut nums, y);
+        sum += sum_part_nums(&mut nums, y, line);
+    }
 
-                    res += resolve_post(&mut l1_state, l1);
-                    sum += res;
-                    resolve_post(&mut l2_state, l2);
-                }
-                l1_state.ctype = CharType::Void;
-                l2_state.ctype = CharType::Void;
-                let mut res = next_step(&mut l1_state, size, l1);
-                next_step(&mut l2_state, size, l2);
+    sum += sum_part_nums(&mut nums, last_line.0, last_line.1);
 
-                execute_promote(&prev_state, &mut l1_state, &l2_state);
-
-                res += resolve_post(&mut l1_state, l1);
-                sum += res;
-                sum
-            })
-            .sum(),
-    )
+    Some(sum)
 }
 
 trait Intersects {
@@ -294,7 +165,10 @@ pub fn part_two(input: &str) -> Option<u64> {
     for (l1, l2) in input.lines().enumerate().into_iter().tuple_windows() {
         collect_nums(&mut nums, l2);
         last_line = l2;
-        sum += sum_gear_ratios(&mut nums, l1.0, l1.1, &mut candidates);
+
+        let (y, line) = l1;
+        remove_unrelevant(&mut nums, y);
+        sum += sum_gear_ratios(&mut nums, y, line, &mut candidates);
     }
 
     sum += sum_gear_ratios(&mut nums, last_line.0, last_line.1, &mut candidates);

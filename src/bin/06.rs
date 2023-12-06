@@ -35,6 +35,11 @@ pub fn part_two(input: &str) -> Option<i64> {
     let time = parse_line2(lines.next().unwrap());
     let record = parse_line2(lines.next().unwrap());
 
+    // `speed` or `hold time` is the `x`
+    // (time - x) * x > record
+    // time*x - x^2 - record > 0
+    // -x^2 + time*x - record > 0
+
     let srtq_d = ((time * time - 4 * record) as f64).sqrt();
     let x1 = (((-time as f64) + srtq_d) / -2.0).floor() as i64;
     let x2 = (((-time as f64) - srtq_d) / -2.0).floor() as i64;

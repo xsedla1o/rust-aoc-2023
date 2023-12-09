@@ -110,8 +110,105 @@ pub fn part_one(input: &str) -> Option<u32> {
     )
 }
 
+fn card_to_index2(card: char) -> usize {
+    match card {
+        'J' => 0,
+        '2'..='9' => (card as u8 - b'1') as usize,
+        'T' => 9,
+        'Q' => 10,
+        'K' => 11,
+        'A' => 12,
+        _ => panic!("Unknown card {card}"),
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Ord)]
+struct Play2<'a> {
+    hand: Hand,
+    cards: &'a str,
+    bid: u32,
+}
+
+impl<'a> PartialOrd for Play2<'a> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match self.hand.partial_cmp(&other.hand) {
+            Some(core::cmp::Ordering::Equal) => {}
+            ord => return ord,
+        }
+        for (my_card, other_card) in self.cards.chars().zip(other.cards.chars()) {
+            if my_card != other_card {
+                return card_to_index2(my_card).partial_cmp(&card_to_index2(other_card));
+            }
+        }
+        Some(Ordering::Equal)
+    }
+}
+
+fn get_hand_kind2(hand: &str) -> Hand {
+    let mut cards_in_hand: Vec<usize> = vec![0; 13];
+    let mut jokers = 0;
+    for card in hand.chars() {
+        if card == 'J' {
+            jokers += 1
+        } else {
+            cards_in_hand[card_to_index2(card)] += 1;
+        }
+    }
+    let mut sorted_hist = cards_in_hand
+        .iter()
+        .enumerate()
+        .map(|(i, n)| (n, i))
+        .sorted()
+        .rev();
+    let (count, _) = sorted_hist.next().unwrap();
+    match count + jokers {
+        5 => Hand::FiveoaK,
+        4 => Hand::FouroaK,
+        3 => {
+            let (count, _) = sorted_hist.next().unwrap();
+            if *count == 2 {
+                Hand::FullHouse
+            } else {
+                Hand::ThreeoaK
+            }
+        }
+        2 => {
+            let (count, _) = sorted_hist.next().unwrap();
+            if *count == 2 {
+                Hand::TwoPairs
+            } else {
+                Hand::OnePair
+            }
+        }
+        1 => Hand::HighCard,
+        _ => panic!("Dont know what to do with count {count}"),
+    }
+}
+
 pub fn part_two(input: &str) -> Option<u32> {
-    None
+    let hands: Vec<Play2> = input
+        .lines()
+        .map(|line| {
+            let (hand, bid) = line.split_once(' ').unwrap();
+
+            Play2 {
+                hand: get_hand_kind2(hand),
+                cards: hand,
+                bid: bid.parse().unwrap(),
+            }
+        })
+        .collect();
+
+    Some(
+        hands
+            .iter()
+            .sorted()
+            .enumerate()
+            .map(|(i, play)| (play, i))
+            .rev()
+            .map(|(play, i)| play.bid * (i as u32 + 1))
+            .sum(),
+    )
 }
 
 #[cfg(test)]
@@ -127,6 +224,6 @@ mod tests {
     #[test]
     fn test_part_two() {
         let result = part_two(&advent_of_code::template::read_file("examples", DAY));
-        assert_eq!(result, None);
+        assert_eq!(result, Some(5905));
     }
 }

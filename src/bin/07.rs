@@ -5,7 +5,15 @@ use itertools::Itertools;
 advent_of_code::solution!(7);
 
 fn card_to_index(card: char) -> usize {
-    "23456789TJQKA".chars().position(|c| c == card).unwrap()
+    match card {
+        '2'..='9' => (card as u8 - b'2') as usize,
+        'T' => 8,
+        'J' => 9,
+        'Q' => 10,
+        'K' => 11,
+        'A' => 12,
+        _ => panic!("Unknown card {card}"),
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]

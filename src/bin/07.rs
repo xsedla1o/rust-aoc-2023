@@ -50,38 +50,30 @@ impl<'a> PartialOrd for Play<'a> {
 }
 
 fn get_hand_kind(hand: &str) -> Hand {
-    let mut cards_in_hand: Vec<usize> = vec![0; 13];
+    let mut cards_in_hand = [0; 13];
     for card in hand.chars() {
         cards_in_hand[card_to_index(card)] += 1;
     }
-    let mut sorted_hist = cards_in_hand
-        .iter()
-        .enumerate()
-        .map(|(i, n)| (n, i))
-        .sorted()
-        .rev();
-    let (count, _) = sorted_hist.next().unwrap();
-    match count {
+    cards_in_hand.sort_unstable_by(|a, b| b.cmp(a));
+    match cards_in_hand[0] {
         5 => Hand::FiveoaK,
         4 => Hand::FouroaK,
         3 => {
-            let (count, _) = sorted_hist.next().unwrap();
-            if *count == 2 {
+            if cards_in_hand[1] == 2 {
                 Hand::FullHouse
             } else {
                 Hand::ThreeoaK
             }
         }
         2 => {
-            let (count, _) = sorted_hist.next().unwrap();
-            if *count == 2 {
+            if cards_in_hand[1] == 2 {
                 Hand::TwoPairs
             } else {
                 Hand::OnePair
             }
         }
         1 => Hand::HighCard,
-        _ => panic!("Dont know what to do with count {count}"),
+        _ => panic!("Dont know what to do with count {}", cards_in_hand[0]),
     }
 }
 
@@ -101,10 +93,9 @@ pub fn part_one(input: &str) -> Option<u32> {
     Some(
         hands
             .iter()
-            .sorted()
+            .sorted_unstable()
             .enumerate()
             .map(|(i, play)| (play, i))
-            .rev()
             .map(|(play, i)| play.bid * (i as u32 + 1))
             .sum(),
     )
@@ -145,7 +136,7 @@ impl<'a> PartialOrd for Play2<'a> {
 }
 
 fn get_hand_kind2(hand: &str) -> Hand {
-    let mut cards_in_hand: Vec<usize> = vec![0; 13];
+    let mut cards_in_hand = [0; 13];
     let mut jokers = 0;
     for card in hand.chars() {
         if card == 'J' {
@@ -154,34 +145,26 @@ fn get_hand_kind2(hand: &str) -> Hand {
             cards_in_hand[card_to_index2(card)] += 1;
         }
     }
-    let mut sorted_hist = cards_in_hand
-        .iter()
-        .enumerate()
-        .map(|(i, n)| (n, i))
-        .sorted()
-        .rev();
-    let (count, _) = sorted_hist.next().unwrap();
-    match count + jokers {
+    cards_in_hand.sort_unstable_by(|a, b| b.cmp(a));
+    match cards_in_hand[0] + jokers {
         5 => Hand::FiveoaK,
         4 => Hand::FouroaK,
         3 => {
-            let (count, _) = sorted_hist.next().unwrap();
-            if *count == 2 {
+            if cards_in_hand[1] == 2 {
                 Hand::FullHouse
             } else {
                 Hand::ThreeoaK
             }
         }
         2 => {
-            let (count, _) = sorted_hist.next().unwrap();
-            if *count == 2 {
+            if cards_in_hand[1] == 2 {
                 Hand::TwoPairs
             } else {
                 Hand::OnePair
             }
         }
         1 => Hand::HighCard,
-        _ => panic!("Dont know what to do with count {count}"),
+        _ => panic!("Dont know what to do with count {}", cards_in_hand[1]),
     }
 }
 
@@ -202,10 +185,9 @@ pub fn part_two(input: &str) -> Option<u32> {
     Some(
         hands
             .iter()
-            .sorted()
+            .sorted_unstable()
             .enumerate()
             .map(|(i, play)| (play, i))
-            .rev()
             .map(|(play, i)| play.bid * (i as u32 + 1))
             .sum(),
     )

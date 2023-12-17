@@ -15,19 +15,17 @@ pub fn part_one(input: &str) -> Option<u32> {
 
     let mut curr_choice = node_map.get("AAA").unwrap();
     let mut steps = 0;
-    'outer: loop {
-        for action in path.chars() {
-            let next = match action {
-                'L' => curr_choice.0,
-                'R' => curr_choice.1,
-                _ => panic!("Unknown action {action}"),
-            };
-            steps += 1;
-            if next == "ZZZ" {
-                break 'outer;
-            }
-            curr_choice = node_map.get(next).unwrap();
+    for action in path.chars().cycle() {
+        let next = match action {
+            'L' => curr_choice.0,
+            'R' => curr_choice.1,
+            _ => panic!("Unknown action {action}"),
+        };
+        steps += 1;
+        if next == "ZZZ" {
+            break;
         }
+        curr_choice = node_map.get(next).unwrap();
     }
 
     Some(steps)
@@ -54,22 +52,21 @@ pub fn part_two(input: &str) -> Option<u64> {
         .map(|choice| {
             let mut curr_choice = choice;
             let mut steps: u64 = 0;
-            loop {
-                for action in path.chars() {
-                    steps += 1;
-                    let next_node = match action {
-                        'L' => curr_choice.0,
-                        'R' => curr_choice.1,
-                        _ => panic!("Unknown action {action}"),
-                    };
+            for action in path.chars().cycle() {
+                steps += 1;
+                let next_node = match action {
+                    'L' => curr_choice.0,
+                    'R' => curr_choice.1,
+                    _ => panic!("Unknown action {action}"),
+                };
 
-                    if next_node.ends_with('Z') {
-                        return steps;
-                    }
-
-                    curr_choice = node_map.get(next_node).unwrap();
+                if next_node.ends_with('Z') {
+                    return steps;
                 }
+
+                curr_choice = node_map.get(next_node).unwrap();
             }
+            0
         })
         .fold(1, |acc, x| lcm(x, acc));
 

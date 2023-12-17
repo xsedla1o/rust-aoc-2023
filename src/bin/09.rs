@@ -1,4 +1,3 @@
-use itertools::Itertools;
 advent_of_code::solution!(9);
 
 pub fn part_one(input: &str) -> Option<i32> {
@@ -6,31 +5,32 @@ pub fn part_one(input: &str) -> Option<i32> {
         input
             .lines()
             .map(|line| {
-                let nums: Vec<_> = line
+                let mut nums: Vec<_> = line
                     .split(' ')
                     .map(|numstr| numstr.parse::<i32>().unwrap())
                     .collect();
-                let mut nums_stack: Vec<Vec<_>> = vec![nums];
+
+                let mut prediction = 0;
+                let mut len = nums.len();
+                let mut any_nonzero;
 
                 loop {
-                    let current_nums = nums_stack.last().unwrap();
-                    let diffs = current_nums
-                        .iter()
-                        .tuple_windows()
-                        .map(|(a, b)| b - a)
-                        .collect_vec();
+                    any_nonzero = false;
+                    for i in 0..len - 1 {
+                        let res = nums[i + 1] - nums[i];
+                        any_nonzero |= res != 0;
+                        nums[i] = res;
+                    }
 
-                    if !diffs.iter().all(|&x| x == 0) {
-                        nums_stack.push(diffs);
-                    } else {
+                    len -= 1;
+                    prediction += nums[len];
+
+                    if !any_nonzero || len == 0 {
                         break;
                     }
                 }
 
-                nums_stack
-                    .iter()
-                    .map(|series| series.last().unwrap())
-                    .sum::<i32>()
+                prediction
             })
             .sum(),
     )
@@ -41,32 +41,36 @@ pub fn part_two(input: &str) -> Option<i32> {
         input
             .lines()
             .map(|line| {
-                let nums: Vec<_> = line
+                let mut nums: Vec<_> = line
                     .split(' ')
                     .map(|numstr| numstr.parse::<i32>().unwrap())
                     .collect();
-                let mut nums_stack: Vec<Vec<_>> = vec![nums];
+
+                let mut prediction = 0;
+                let len = nums.len();
+                let mut start = 1;
+                let mut any_nonzero;
 
                 loop {
-                    let current_nums = nums_stack.last().unwrap();
-                    let diffs = current_nums
-                        .iter()
-                        .tuple_windows()
-                        .map(|(a, b)| b - a)
-                        .collect_vec();
+                    any_nonzero = false;
+                    for i in (start..len).rev() {
+                        let res = nums[i] - nums[i - 1];
+                        any_nonzero |= res != 0;
+                        nums[i] = res;
+                    }
 
-                    if !diffs.iter().all(|&x| x == 0) {
-                        nums_stack.push(diffs);
-                    } else {
+                    start += 1;
+
+                    if !any_nonzero {
                         break;
                     }
                 }
 
-                nums_stack
-                    .iter()
-                    .map(|series| series.first().unwrap())
-                    .rev()
-                    .fold(0, |acc, x| x - acc)
+                for i in (0..start).rev() {
+                    prediction = nums[i] - prediction;
+                }
+
+                prediction
             })
             .sum(),
     )
